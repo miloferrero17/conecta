@@ -118,9 +118,9 @@ class Questions(BaseModel):
 '''
 if __name__ == "__main__":
     qs = Questions()
-    siguiente = qs.get_next_question_id(10)  # por ejemplo, si 5 es un question_id
+    #siguiente = qs.get_next_question_id(10)  # por ejemplo, si 5 es un question_id
+    siguiente = qs.get_question_name_by_id(1)
     print(siguiente)
-
 
 
 from typing import Optional, List, Dict

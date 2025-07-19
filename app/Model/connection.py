@@ -2,11 +2,13 @@ import os
 import requests
 from typing import List, Dict, Optional
 from dotenv import load_dotenv
+import sys
 
 load_dotenv()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_API_KEY = os.getenv("SUPABASE_API_KEY")
+entorno = os.getenv("ENV", "undefined")
 
 class DatabaseManager:
     def __init__(self):

@@ -156,12 +156,30 @@ class Messages(BaseModel):
         return max(matched, key=lambda m: m.message_id)
 
 
+    def get_latest_question_id_by_phone_and_event_id(self, phone: str, event_id: int) -> Optional[int]:
+        """
+        Devuelve el question_id del último mensaje (mayor message_id) para un teléfono y event_id dado.
+        """
+        # Obtén todos los mensajes para ese teléfono
+        mensajes = self.get_by_phone(phone)
+        if not mensajes:
+            return None
+
+        # Filtra por event_id
+        filtrados = [m for m in mensajes if m.event_id == event_id]
+        if not filtrados:
+            return None
+
+        # Encuentra el mensaje más reciente
+        ultimo_mensaje = max(filtrados, key=lambda m: m.message_id)
+        return ultimo_mensaje.question_id if ultimo_mensaje.question_id is not None else None
+
+
 '''
+
 msj = Messages()
-evento = msj.get_last_event_id_by_phone("5491133585362")
+evento = msj.get_latest_question_id_by_phone_and_event_id("5491133585362",2)
 print(evento)
-
-
 
 from typing import Optional, List, Dict
 from app.Model.enums import DataType

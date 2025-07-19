@@ -30,21 +30,22 @@ from app.flows.workflow_logic import ejecutar_nodo
 import app.services.brain as brain
 import app.services.uploader as uploader
 import app.services.decisions as decs
-import app.services.embedding as vector
 from app.services.decisions import next_node_fofoca_sin_logica, limpiar_numero, calcular_diferencia_en_minutos,ejecutar_codigo_guardado
 import app.services.brain as brain
-entorno = os.getenv("ENV", "undefined")
 
 def handle_incoming_message(body, to,  tiene_adjunto, media_type, file_path, transcription, description,pdf_text):
     print(body)
     #twilio.enviar_mensaje_si_no("+5491133585362")
     print(media_type)
+    
+    '''
     if tiene_adjunto == 1:
         if media_type.startswith("image"):
             twilio.send_whatsapp_message(description, to, None)    
         if( media_type == "application/pdf"):
             twilio.send_whatsapp_message(pdf_text, to, None)    
-    
+    '''
+
     msj = Messages()
     tx = Transactions()
     ev = Events()
@@ -83,149 +84,32 @@ def handle_incoming_message(body, to,  tiene_adjunto, media_type, file_path, tra
 
     contacto = ctt.get_by_phone(numero_limpio)
 
-    #### 1) Reseteo
-    if body in ("R1", "R2", "R3", "R4", "R5", "R6", "R7"):
-        event_id = int(body[1:])    # toma desde el índice 1 hasta el final
-        print(event_id)
-        msg_key = ev.get_nodo_inicio_by_event_id(event_id)
-        print(msg_key)
-
-        try: 
-            if contacto is None:
-                # creás el contacto y recuperás sólo el ID
-                _new_id = ctt.add(
-                    event_id=event_id,
-                    name="Juan",
-                     phone=numero_limpio
-                )
-                # ahora sí traés el objeto completo con su contact_id, nombre, etc.
-                contacto = ctt.get_by_phone(numero_limpio)
-                print("1.1) Contacto creado")
-            else:
-                ctt.update(
-                    contact_id=contacto.contact_id,
-                    event_id=event_id
-                )
-
-        except Exception as e:
-            print(f"Ocurrió un error: {e}")
-        
-            
-        msj.add(
-            msg_key=msg_key,
-            text="Cambio a " + body,
-            phone=numero_limpio,
-            event_id=event_id
-        )
-        
-        try:
-            ultima_tx = tx.get_last_timestamp_by_phone(numero_limpio)
-            print(ultima_tx)
-            
-            if ultima_tx is not None:
-                # Cierro la transacción anterior
-                tx.update(
-                    id=ultima_tx["id"],
-                    contact_id=contacto.contact_id,
-                    phone=numero_limpio,
-                    name="Cerrada",
-                    timestamp=formatted_now,
-                    event_id=event_id
-
-                )
-                print("2.1.) Cierro la tx vieja")                
-                
-                # Abro la nueva transacción
-                #print(event_id)
-                contexto_agente = ev.get_description_by_event_id(event_id)
-                conversation_history = [{
-                        "role": "system",
-                        "content":contexto_agente
-                    }]
-                #print(conversation_history)
-                conversation_str = json.dumps(conversation_history)                
-                
-                
-                tx.add(
-                    contact_id=contacto.contact_id,
-                    phone=numero_limpio,
-                    event_id=event_id,
-                    name="Abierta",
-                    conversation = conversation_str,
-                    timestamp=formatted_now,
-                    data_created=formatted_now
-                )
-                print(tx)
-
-                print("2.2.) Creo la tx")                
-
-            else:
-                # No había transacción previa: abro la primera
-                contexto_agente = ev.get_description_by_event_id(event_id)
-                conversation_history = [{
-                    "role": "system",
-                    "content":contexto_agente
-                }]
-                #print(conversation_history)
-                conversation_str = json.dumps(conversation_history)                
-                #print(conversation_str)
-                tx.add(
-                    contact_id=contacto.contact_id,
-                    phone=numero_limpio,
-                    name="Abierta",
-                    event_id=event_id,
-                    conversation = conversation_str,
-                    timestamp=formatted_now,
-                    data_created=formatted_now
-                )
-
-                print("2.3.) Creo la tx")                
-
-        except (TypeError, KeyError) as e:
-            print(f"❌ Error manejando transacciones: {e}")
-            # acá podrías decidir si vuelves a lanzar la excepción o manejarla de otro modo
-
-        
-        except Exception as e:
-            print(f"Ocurrió un error: {e}")
-
-        eventos = ev.get_by_id(event_id)
-        print(eventos.name)
-        twilio.send_whatsapp_message("Cambio de proyecto con éxito: "+eventos.name, to, None)    
-        return "Ok"        
-
-
-
 
 
     #### 2) Alta de contacto   
-    if contacto is None:        
-        if entorno == "prod":
-            event_id = 6   
+    if contacto is None:
+        entorno = os.getenv("ENV", "undefined")        
+        if entorno == "undefined":
+            event_id = 2
+
         
         ctt.add(
             event_id=event_id, 
             name="Juan",
             phone=numero_limpio
         )
-
+        
+        msg_key = ev.get_nodo_inicio_by_event_id(event_id)
+        msj.add(
+            msg_key=500,
+            text="Nuevo contacto",
+            phone=numero_limpio,
+            event_id=event_id,
+            question_id=0
+        )
+        
         print("1) Contacto creado")
         
-        
-        
-        if (entorno == "undefined" or entorno == "dev"):
-            print(entorno)
-            twilio.send_whatsapp_message("¡Bienvenido! Estás a punto de iniciar una prueba con nuestro motor conversacional. Elegí el proyecto con el que querés comenzar. R1) Hunitro; R2) PacienteX - Recepcion; R3) PacienteX - Guardia; R4) PacienteX - WA; R5) Growcast - Sales. Ingresa solo los dos caracteres.", to, None)    
-            return "Ok"
-        else:
-            msg_key = ev.get_nodo_inicio_by_event_id(event_id)
-            msj.add(
-                msg_key=msg_key,
-                text="Cambio a " + body,
-                phone=numero_limpio,
-                event_id=event_id
-            )
-
 
     contacto = ctt.get_by_phone(numero_limpio)
     
@@ -243,21 +127,13 @@ def handle_incoming_message(body, to,  tiene_adjunto, media_type, file_path, tra
     #### 3) Gestión de sesiones   
     if contacto is not None:        
         event_id = ctt.get_event_id_by_phone(numero_limpio)
-        if event_id == 0:    ### Primera sesion de todas
-            twilio.send_whatsapp_message("Por favor contesta un numero para comenzar.", to, None)   
-            print("Por favor contesta un numero para comenzar.")
-            return "Ok"        
-
         contexto_agente = ev.get_description_by_event_id(event_id)
         conversation_history = [{
             "role": "system",
             "content":contexto_agente
         }]
-        #print(conversation_history)
         conversation_str = json.dumps(conversation_history)
 
-
-        #print(conversation_str)   
         try: #### Creacion y update de sesiones
             ultima_tx = tx.get_last_timestamp_by_phone(numero_limpio)
             if ultima_tx is None:
@@ -290,7 +166,8 @@ def handle_incoming_message(body, to,  tiene_adjunto, media_type, file_path, tra
                     msg_key=msg_key, 
                     text=body, 
                     phone=numero_limpio,
-                    event_id=event_id
+                    event_id=event_id,
+                    question_id=0
                 )    
                 print("2.6) Sesion nueva")
                     
@@ -318,11 +195,14 @@ def handle_incoming_message(body, to,  tiene_adjunto, media_type, file_path, tra
                 )
 
                 msg_key = ev.get_nodo_inicio_by_event_id(event_id)
+
                 msj.add(
                     msg_key=msg_key, 
                     text=body, 
                     phone=numero_limpio,
-                    event_id=event_id
+                    event_id=event_id,
+                    question_id=0
+
                 )    
                 print("2.6) Sesion nueva")
             
@@ -332,6 +212,8 @@ def handle_incoming_message(body, to,  tiene_adjunto, media_type, file_path, tra
         
             
             ultimo_mensaje = msj.get_latest_by_phone(numero_limpio)
+            id_question = msj.get_latest_question_id_by_phone_and_event_id(numero_limpio,2)
+
             if ultimo_mensaje:
                 msg_key = ultimo_mensaje.msg_key
                 #print(ultimo_mensaje)
@@ -340,7 +222,8 @@ def handle_incoming_message(body, to,  tiene_adjunto, media_type, file_path, tra
                     msg_key=msg_key, 
                     text=body, 
                     phone=numero_limpio,
-                    event_id=event_id
+                    event_id=event_id,
+                    question_id=id_question
                 )
 
 
@@ -354,8 +237,7 @@ def handle_incoming_message(body, to,  tiene_adjunto, media_type, file_path, tra
                 "content": body
             })
             conversation_str = json.dumps(conversation_history)
-
-            #print(conversation_str)
+            
             nodo_destino = msg_key
             #print(nodo_destino)
 
@@ -394,7 +276,7 @@ def handle_incoming_message(body, to,  tiene_adjunto, media_type, file_path, tra
                 variables.update(contexto_actualizado)
                 #print(variables)
                 # Salida del loop
-                print(variables.get("conversation_str"))
+                #print(variables.get("conversation_str"))
                 nodo_destino = variables.get("nodo_destino")
                 if variables.get("subsiguiente") == 1:
                     break
@@ -411,7 +293,7 @@ def handle_incoming_message(body, to,  tiene_adjunto, media_type, file_path, tra
             #print(variables.get("response_text"))
             #mensaje = msj.get_latest_by_phone(numero_limpio)
             mensaje_a_enviar = variables.get("response_text") or "Hubo un problema interno. Por favor intentá más tarde."
-            twilio.send_whatsapp_message(mensaje_a_enviar, to, variables.get("url"))
+            #twilio.send_whatsapp_message(mensaje_a_enviar, to, variables.get("url"))
 
             open_tx_id = tx.get_open_transaction_id_by_contact_id(contacto.contact_id)
             #print(open_tx_id)
@@ -426,7 +308,7 @@ def handle_incoming_message(body, to,  tiene_adjunto, media_type, file_path, tra
                     event_id=event_id
                 )
                 time.sleep(2)
-                twilio.send_whatsapp_message("Fin de la consulta, gracias!", to, None)
+                #twilio.send_whatsapp_message("Fin de la consulta, gracias!", to, None)
             else:
                 tx.update(
                     id=open_tx_id,
@@ -454,7 +336,3 @@ def handle_incoming_message(body, to,  tiene_adjunto, media_type, file_path, tra
 
         except (TypeError, KeyError) as e:
             print(f"❌ Error accediendo a 'name': {e}")
-
-
-if __name__ == "__main__":
-    handle_incoming_message("me duele el ombligo", "whatsapp:+5491133585362",  0, "", "","", "","",)
